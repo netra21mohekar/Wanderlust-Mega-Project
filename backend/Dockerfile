@@ -3,16 +3,16 @@ FROM node:21 AS backend-builder
 
 WORKDIR /app
 
-# copy package.json and lock file first (better caching)
+# copy dependency files first
 COPY package*.json ./
 
-# install dependencies (including dev for tests)
+# install all dependencies (including dev, for tests)
 RUN npm install
 
 # copy the rest of the code
 COPY . .
 
-# run tests (CI mode)
+# run tests in CI-friendly mode
 RUN npm test -- --ci --runInBand --coverage
 
 # Stage 2: Runtime
@@ -20,14 +20,15 @@ FROM node:21-slim
 
 WORKDIR /app
 
-# copy only necessary files
+# copy only package.json + lock file
 COPY package*.json ./
 
 # install only production dependencies
 RUN npm install --omit=dev
 
-# copy built app (not node_modules from builder)
-COPY --from=backend-builder /app/dist ./dist
+# copy source code (not node_modules)
+COPY --from=backend-builder /app . 
+
 COPY .env.docker .env
 
 EXPOSE 8080
